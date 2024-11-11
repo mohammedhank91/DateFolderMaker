@@ -94,7 +94,43 @@ $buttonBrowse.Add_Click({
     }
 })
 
+# Button to clear the entered data
+$buttonClear = New-Object System.Windows.Forms.Button
+$buttonClear.Text = "Clear Data"
+$buttonClear.Location = New-Object System.Drawing.Point(380,340)
+$buttonClear.Size = New-Object System.Drawing.Size(75,25)
+$form.Controls.Add($buttonClear)
 
+# Quit button
+$buttonQuit = New-Object System.Windows.Forms.Button
+$buttonQuit.Text = "Quit"
+$buttonQuit.Location = New-Object System.Drawing.Point(380, 380) 
+$buttonQuit.Size = New-Object System.Drawing.Size(75,25)
+$buttonQuit.BackColor = [System.Drawing.Color]::Red  # Set background color to red
+$buttonQuit.ForeColor = [System.Drawing.Color]::White  # Set text color to white for contrast
+$form.Controls.Add($buttonQuit)
+
+# Event to clear the entered data
+$buttonClear.Add_Click({
+    # Clear the DateTimePickers
+    $dateTimePickerStart.Value = [System.DateTime]::Now
+    $dateTimePickerEnd.Value = [System.DateTime]::Now
+
+    # Clear the TextBoxes
+    $textBoxSubFolder1.Clear()
+    $textBoxSubFolder2.Clear()
+    $textBoxDirectory.Clear()
+
+    # Optionally, show a message to confirm clearing
+    [System.Windows.Forms.MessageBox]::Show("Data cleared successfully!", "Clear Data")
+})
+
+
+
+# Add Click event for Quit button to close the form
+$buttonQuit.Add_Click({
+    $form.Close()
+})
 
 # Create a progress bar
 $progressBar = New-Object System.Windows.Forms.ProgressBar
@@ -114,6 +150,80 @@ $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $button.FlatAppearance.BorderSize = 0
 $button.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(100, 149, 237) # CornflowerBlue
 $button.FlatAppearance.MouseDownBackColor = [System.Drawing.Color]::FromArgb(65, 105, 225) # RoyalBlue
+
+# Button to save template
+$buttonSaveTemplate = New-Object System.Windows.Forms.Button
+$buttonSaveTemplate.Text = "Save Template"
+$buttonSaveTemplate.Location = New-Object System.Drawing.Point(130, 380)
+$buttonSaveTemplate.Size = New-Object System.Drawing.Size(90,25)
+$form.Controls.Add($buttonSaveTemplate)
+
+# Event to save template data to JSON file
+$buttonSaveTemplate.Add_Click({
+    # Create SaveFileDialog to choose where to save the file
+    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveFileDialog.Filter = "JSON Files (*.json)|*.json"
+    $saveFileDialog.DefaultExt = "json"
+    $saveFileDialog.AddExtension = $true
+
+    # Show the dialog and check if the user clicked Save
+    if ($saveFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $output_dir = $saveFileDialog.FileName  # Get the selected file path
+
+        # Create the template data
+        $template = @{
+            StartDateFormat = $dateTimePickerStart.Value.ToString("dd-MM-yyyy")
+            EndDateFormat = $dateTimePickerEnd.Value.ToString("dd-MM-yyyy")
+            Subfolder1 = $textBoxSubFolder1.Text
+            Subfolder2 = $textBoxSubFolder2.Text
+            OutputDirectory = $output_dir
+        }
+
+        # Convert the template to JSON format
+        $json = $template | ConvertTo-Json
+
+        try {
+            # Save JSON data to the selected file path
+            $json | Out-File -FilePath $output_dir -Encoding UTF8
+            [System.Windows.Forms.MessageBox]::Show("Template saved successfully!", "Template Saved")
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to save the template. Check your permissions.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    }
+})
+
+
+
+# Button to load template
+$buttonLoadTemplate = New-Object System.Windows.Forms.Button
+$buttonLoadTemplate.Text = "Load Template"
+$buttonLoadTemplate.Location = New-Object System.Drawing.Point(230, 380)
+$buttonLoadTemplate.Size = New-Object System.Drawing.Size(90,25)
+$form.Controls.Add($buttonLoadTemplate)
+
+# Event to load template data from JSON file
+$buttonLoadTemplate.Add_Click({
+    $templatePath = [System.Windows.Forms.OpenFileDialog]::new()
+    $templatePath.Filter = "JSON Files|*.json"
+    if ($templatePath.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $template = Get-Content -Path $templatePath.FileName | ConvertFrom-Json
+        
+        # Parse the date strings to DateTime objects with the correct format
+        $dateTimePickerStart.Value = [datetime]::ParseExact($template.StartDateFormat, "dd-MM-yyyy", $null)
+        $dateTimePickerEnd.Value = [datetime]::ParseExact($template.EndDateFormat, "dd-MM-yyyy", $null)
+        
+        # Populate the other fields
+        $textBoxSubFolder1.Text = $template.Subfolder1
+        $textBoxSubFolder2.Text = $template.Subfolder2
+        
+        # Extract the directory from OutputDirectory (remove the filename)
+        $outputDirectoryPath = [System.IO.Path]::GetDirectoryName($template.OutputDirectory)
+        $textBoxDirectory.Text = $outputDirectoryPath
+        
+        [System.Windows.Forms.MessageBox]::Show("Template loaded successfully!", "Template Loaded")
+    }
+})
+
 
 
 # Update the validation and folder creation code to use the DateTimePicker values
@@ -334,17 +444,16 @@ $buttonQuit.Add_Click({
 # Create ToolTip object
 $toolTip = New-Object System.Windows.Forms.ToolTip
 
-# Add tooltips
-$toolTip.SetToolTip($dateTimePickerStart, "Enter the start date in dd-MM-yy format.")
-$toolTip.SetToolTip($dateTimePickerEnd, "Enter the end date in dd-MM-yy format.")
-$toolTip.SetToolTip($textBoxSubFolder1, "Enter the name for the first subfolder.")
-$toolTip.SetToolTip($textBoxSubFolder2, "Enter the name for the second subfolder.")
-$toolTip.SetToolTip($buttonBrowse, "Browse to select the output directory.")
-$toolTip.SetToolTip($checkboxLogging, "Check to enable logging of folder creation process.")
-$toolTip.SetToolTip($button, "Click to create the folders based on the provided inputs.")
-$toolTip.SetToolTip($buttonHelp, "Click to view instructions on how to use the application.")
-$toolTip.SetToolTip($buttonPreview, "Click to preview the folder structure before creating.")
-
+# Update tooltips
+$toolTip.SetToolTip($dateTimePickerStart, "Select the start date (dd-MM-yyyy format).")
+$toolTip.SetToolTip($dateTimePickerEnd, "Select the end date (dd-MM-yyyy format).")
+$toolTip.SetToolTip($textBoxSubFolder1, "Enter the name for the first subfolder (e.g., Documents).")
+$toolTip.SetToolTip($textBoxSubFolder2, "Enter the name for the second subfolder (e.g., Images).")
+$toolTip.SetToolTip($buttonBrowse, "Click to browse and select the output directory where folders will be created.")
+$toolTip.SetToolTip($checkboxLogging, "Enable this option to log the folder creation process for troubleshooting.")
+$toolTip.SetToolTip($button, "Click here to create the folders based on the specified start date, end date, and subfolder names.")
+$toolTip.SetToolTip($buttonHelp, "Click to view a detailed guide on how to use the application.")
+$toolTip.SetToolTip($buttonPreview, "Click to preview the folder structure before creating the folders.")
 
 # Add button click event
 $button.Add_Click({

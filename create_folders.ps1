@@ -3,11 +3,14 @@ Add-Type -AssemblyName System.Drawing
 
 # Create a form
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Folder Creation Script"
-$form.Size = New-Object System.Drawing.Size(530,450)
+$form.Text = "Folder Creation Tool"
+$form.Size = New-Object System.Drawing.Size(500,450)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
+# Load the icon file and set it to the form
+$iconPath = "create_folders.ico"
+$form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon($iconPath)
 
 # Create labels and text boxes for start date and end date
 $labelStartDate = New-Object System.Windows.Forms.Label
@@ -110,6 +113,11 @@ $buttonQuit.BackColor = [System.Drawing.Color]::Red  # Set background color to r
 $buttonQuit.ForeColor = [System.Drawing.Color]::White  # Set text color to white for contrast
 $form.Controls.Add($buttonQuit)
 
+# Add Click event for Quit button to close the form
+$buttonQuit.Add_Click({
+    [System.Windows.Forms.Application]::Exit()
+})
+
 # Event to clear the entered data
 $buttonClear.Add_Click({
     # Clear the DateTimePickers
@@ -121,16 +129,8 @@ $buttonClear.Add_Click({
     $textBoxSubFolder2.Clear()
     $textBoxDirectory.Clear()
 
-    # Optionally, show a message to confirm clearing
-    [System.Windows.Forms.MessageBox]::Show("Data cleared successfully!", "Clear Data")
 })
 
-
-
-# Add Click event for Quit button to close the form
-$buttonQuit.Add_Click({
-    $form.Close()
-})
 
 # Create a progress bar
 $progressBar = New-Object System.Windows.Forms.ProgressBar
@@ -144,7 +144,7 @@ $button.Text = "Create Folders"
 $button.Location = New-Object System.Drawing.Point(150, 310)
 $button.Size = New-Object System.Drawing.Size(150, 50)
 $button.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180) # SteelBlue
-$button.ForeColor = [System.Drawing.Color]::White
+$button.ForeColor = [System.Drawing.Color]::Azure
 $button.Font = New-Object System.Drawing.Font("Arial", 12, [System.Drawing.FontStyle]::Bold)
 $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $button.FlatAppearance.BorderSize = 0
@@ -220,7 +220,6 @@ $buttonLoadTemplate.Add_Click({
         $outputDirectoryPath = [System.IO.Path]::GetDirectoryName($template.OutputDirectory)
         $textBoxDirectory.Text = $outputDirectoryPath
         
-        [System.Windows.Forms.MessageBox]::Show("Template loaded successfully!", "Template Loaded")
     }
 })
 
@@ -321,22 +320,50 @@ $buttonPreview.Add_Click({
     $subfolder1 = $textBoxSubFolder1.Text
     $subfolder2 = $textBoxSubFolder2.Text
 
-    # Generate preview of the folder structure
-    $preview = "Folder Structure Preview:`n"
-    $preview += "--------------------------------`n"
-    
+    # Generate preview of the folder structure in a list format
+    $dateList = @()
     $current_date = $start_date
     while ($current_date -le $end_date) {
         $date_str = $current_date.ToString("dd-MM-yy")
-        $preview += "$date_str`n"
-        $preview += "  |-- $subfolder1`n"
-        $preview += "  |__ $subfolder2`n"
-        $preview += "--------------------------------`n"
+        $dateList += "📅 Date: $date_str`n  ├── $subfolder1`n  └── $subfolder2`n"
         $current_date = $current_date.AddDays(1)
     }
 
-    [System.Windows.Forms.MessageBox]::Show($preview, "Preview", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    # Group dates into columns for better display
+    $columns = 2  # Number of columns to display
+    $rows = [math]::Ceiling($dateList.Count / $columns)
+    $preview = "Folder Structure Preview:`n"
+    $preview += "=============================`n`n"
+    for ($i = 0; $i -lt $rows; $i++) {
+        for ($j = 0; $j -lt $columns; $j++) {
+            $index = $i + ($j * $rows)
+            if ($index -lt $dateList.Count) {
+                $preview += $dateList[$index].PadRight(30)  # Adjust padding if needed
+            }
+        }
+        $preview += "`n"
+    }
+
+    # Create a new form for the preview
+    $previewForm = New-Object System.Windows.Forms.Form
+    $previewForm.Text = "Preview"
+    $previewForm.Size = New-Object System.Drawing.Size(500, 400)
+
+    # Create a TextBox to display the preview text
+    $previewBox = New-Object System.Windows.Forms.TextBox
+    $previewBox.Multiline = $true
+    $previewBox.ReadOnly = $true
+    $previewBox.ScrollBars = "Vertical"
+    $previewBox.Size = New-Object System.Drawing.Size(480, 360)
+    $previewBox.Text = $preview
+
+    # Add the TextBox to the form
+    $previewForm.Controls.Add($previewBox)
+
+    # Show the preview form
+    $previewForm.ShowDialog()
 })
+
 
 
 
@@ -504,13 +531,26 @@ $button.Add_Click({
 
         [System.Windows.Forms.MessageBox]::Show("Folders created successfully.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     } catch {
-        [System.Windows.Forms.MessageBox]::Show("An error occurred: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        [System.Windows.Forms.MessageBox]::Show("Failed to create folders. Check your inputs and try again.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 
     if ($checkboxLogging.Checked) {
         Add-Content -Path $logPath -Value "Created folder: $date_str"
     }
 })
+
+$form.Add_FormClosing({
+    param($sender, $e)
+
+    # Prevent any popups on form close by directly disposing of the form
+    $form.DialogResult = [System.Windows.Forms.DialogResult]::None
+    $e.Cancel = $false
+    [System.Windows.Forms.Application]::Exit()  # Ensure application exits fully
+})
+
+# Set the form background color
+$form.BackColor = [System.Drawing.Color]::White
+
 
 # Add the button to the form
 $form.Controls.Add($button)

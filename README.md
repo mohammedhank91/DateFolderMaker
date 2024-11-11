@@ -30,7 +30,7 @@ This PowerShell script is designed to automate the creation of a series of folde
 ## Example Output
 
 The folder structure created by this script will look like this:
-
+```
 Output Directory/
 ├── 10-11-24/
 │ ├── Subfolder1/
@@ -39,7 +39,7 @@ Output Directory/
 │ ├── Subfolder1/
 │ └── Subfolder2/
 ...
-
+```
 
 ## Requirements
 
